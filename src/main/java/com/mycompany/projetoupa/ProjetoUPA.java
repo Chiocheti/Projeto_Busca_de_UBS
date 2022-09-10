@@ -6,11 +6,21 @@
 package com.mycompany.projetoupa;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.FileReader;
+import java.io.IOException;
+import static java.lang.System.in;
+import java.net.URL;
+import java.nio.channels.Channels;
+import java.nio.channels.ReadableByteChannel;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Scanner;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 import org.apache.poi.hssf.usermodel.HSSFSheet;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.Cell;
@@ -26,9 +36,30 @@ public class ProjetoUPA {
     // Array que vai guardar todos os objetos UPA
     static List<UPA> listUPA = new ArrayList<UPA>();
     
+    public static void deleteAllResources(){
+        File file = new File( "./Unidades_Basicas_Saude-UBS.zip" );
+        file.delete();
+        File file2 = new File( "./DTB_2021.zip"); 
+        file2.delete();
+        File file3 = new File( "./RELATORIO_DTB_BRASIL_DISTRITO.ods"); 
+        file3.delete();
+        File file4 = new File( "./RELATORIO_DTB_BRASIL_DISTRITO.xls"); 
+        file4.delete();
+        File file5 = new File( "./RELATORIO_DTB_BRASIL_MUNICIPIO.ods"); 
+        file5.delete();
+        File file6 = new File( "./RELATORIO_DTB_BRASIL_MUNICIPIO.xls"); 
+        file6.delete();
+        File file7 = new File( "./RELATORIO_DTB_BRASIL_SUBDISTRITO.xls"); 
+        file7.delete();
+        File file8 = new File( "./RELATORIO_DTB_BRASIL_SUBDISTRITO.xls"); 
+        file8.delete();
+        File file9 = new File( "./Unidades_Basicas_Saude-UBS.csv");
+        file9.delete();
+    }
+    
     public static void downloadResources(){
-        final String httpFile = "https://geoftp.ibge.gov.br/organizacao_do_territorio/estrutura_territorial/divisao_territorial/2021/DTB_2021.zip";
-        final String localFile = "./DTB_2021 (1).zip";
+        String httpFile = "https://geoftp.ibge.gov.br/organizacao_do_territorio/estrutura_territorial/divisao_territorial/2021/DTB_2021.zip";
+        String localFile = "./DTB_2021 .zip";
         
         try {
             URL website = new URL(httpFile);
@@ -40,6 +71,69 @@ public class ProjetoUPA {
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+        //httpFile = "https://sage.saude.gov.br/dados/repositorio/cadastro_estabelecimentos_cnes.zip";
+        httpFile = "https://s3.sa-east-1.amazonaws.com/ckan.saude.gov.br/CNES/Unidades_Basicas_Saude-UBS.zip";
+        localFile = "./Unidades_Basicas_Saude-UBS.zip";
+        
+        try {
+            URL website = new URL(httpFile);
+            ReadableByteChannel rbc = Channels.newChannel(website.openStream());
+            FileOutputStream fos = new FileOutputStream(localFile);
+            fos.getChannel().transferFrom(rbc, 0, Long.MAX_VALUE);
+            fos.close();
+            rbc.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        
+    }
+    
+    private static void unzip(String zipFilePath, String destDir) {
+        File dir = new File(destDir);
+        // create output directory if it doesn't exist
+        if(!dir.exists()) dir.mkdirs();
+        FileInputStream fis;
+        //buffer for read and write data to file
+        byte[] buffer = new byte[1024];
+        try {
+            fis = new FileInputStream(zipFilePath);
+            ZipInputStream zis = new ZipInputStream(fis);
+            ZipEntry ze = zis.getNextEntry();
+            while(ze != null){
+                String fileName = ze.getName();
+                File newFile = new File(destDir + File.separator + fileName);
+                System.out.println("Unzipping to "+newFile.getAbsolutePath());
+                //create directories for sub directories in zip
+                new File(newFile.getParent()).mkdirs();
+                FileOutputStream fos = new FileOutputStream(newFile);
+                int len;
+                while ((len = zis.read(buffer)) > 0) {
+                fos.write(buffer, 0, len);
+                }
+                fos.close();
+                //close this ZipEntry
+                zis.closeEntry();
+                ze = zis.getNextEntry();
+            }
+            //close last ZipEntry
+            zis.closeEntry();
+            zis.close();
+            fis.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        
+    }
+
+    private static void unzipAllFiles(){
+        String zipFilePath = "./DTB_2021 .zip";
+        String destDir = "./";
+        unzip(zipFilePath, destDir);
+        
+        zipFilePath = "./Unidades_Basicas_Saude-UBS.zip";
+        destDir = "./";
+        unzip(zipFilePath, destDir);
     }
     
     public static void getAllMunicipios(){    
@@ -182,7 +276,7 @@ public class ProjetoUPA {
         // Quantidade de UPAs lidas
         Integer QttUpa = 0;
         // Caminho do .csv
-        String path = "./cadastro_estabelecimentos_cnes.csv";
+        String path = "./Unidades_Basicas_Saude-UBS.csv";
         // Try instanciando os metodos para ler o .csv
         try (BufferedReader br = new BufferedReader(new FileReader(path))){
             // Le a primeira linha e não a usa pois é o cabeçalho
@@ -247,13 +341,86 @@ public class ProjetoUPA {
         return UPAsFiltradas;
     }
     
+    public static List<String> findMunicipiosByUF(String UF){
+        // Array List que serão guardados os nomes do municipio
+        List<String> getMunicipios = new ArrayList<String>();
+        // Inteiro que ira guardar a quantidade de municipios do estado selecionado
+        Integer qttMunicipios = 0;
+        // Para cada Municipio p em listMunicipios
+        for(Municipio p : listMunicipios){
+            // Se o Municipio p na variavel Nome_UF for igual ao atributo recebido
+            if(p.getNome_UF().equals(UF)){
+                // Adiciona o Nome_Municipio desse Objeto
+                getMunicipios.add(p.getNome_Munic());
+                qttMunicipios++;
+            }
+        }
+        // Printa todos os Municipios dentro de getMunicipios
+        System.out.println("Municipios do Estado de: " + UF);
+        for(String p : getMunicipios){
+            System.out.println("Municipio: " + p);
+        }
+        System.out.println("Quantidade de Cidades Lidas: " + qttMunicipios);
+        
+        return getMunicipios;
+    }
+
     public static void main(String[] args) {
-        String NomeMunicipio = "Belo Horizonte";
+        deleteAllResources();
+        downloadResources();
+        unzipAllFiles();
         getAllMunicipios();
         getAllUPAS();
-        List<String> NumeroDoMunicipio = findInMunicipios(NomeMunicipio);
-        for(String p : NumeroDoMunicipio){
-            findInUPAS(p);
-        }
+        Scanner ler = new Scanner(in);
+        Scanner s = new Scanner(System.in);
+
+        int op;
+
+        do {
+            System.out.println("-------------------------------------------");
+            System.out.println("|                   MENU                   |");
+            System.out.println("-------------------------------------------");
+            System.out.println("|                                          |");
+            System.out.println("| 0 - Sair                                 |");
+            System.out.println("| 1 - Busca por estado                     |");
+            System.out.println("| 2 - Busca por cidade                     |");
+            System.out.println("| 3 - Baixar tudo novamente                |");
+            System.out.println("--------------------------------------------");
+            System.out.println("Digite sua opção:");
+
+            op = Integer.parseInt(s.nextLine());
+
+            switch (op) {
+                case 0: {
+                    System.out.println("Programa Finalizado!");
+                    break;
+                }
+                case 1: {
+                    System.out.println("Digite o Nome do estado que deseja filtar: ");
+                    String UF = ler.nextLine();
+                    System.out.println(UF);
+                    findMunicipiosByUF(UF);
+                    break;
+                }
+                case 2: {
+                    System.out.println("Digite o Nome da Cidade que deseja pesquisar: ");
+                    String NomeMunicipio = ler.nextLine();
+                    List<String> NumeroDoMunicipio = findInMunicipios(NomeMunicipio);
+                    for(String p : NumeroDoMunicipio){
+                        findInUPAS(p);
+                    }
+                    break;
+                }
+                case 3: {
+                    deleteAllResources();
+                    downloadResources();
+                    unzipAllFiles();
+                    getAllMunicipios();
+                    getAllUPAS();
+                    break;
+                }
+            }
+
+        } while (op != 0);
     }
 }
